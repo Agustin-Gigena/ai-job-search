@@ -1,26 +1,21 @@
-# AI Job Search para Oh My Pi - Diseño de Arquitectura
-
-**Fecha:** 2026-07-08  
-**Autor:** AI Job Search Migration Project  
-**Estado:** Aprobado para implementación  
-**Idioma del sistema:** Español  
-**Idiomas de output:** Español (interfaz), Español/Inglés (CV y carta según job posting)
-
----
-
 ## 1. Resumen Ejecutivo
 
-Migración completa del framework AI Job Search desde Claude Code a Oh My Pi, con detección automática de idioma (español/inglés) y traducción automática del CV cuando sea necesario.
+Migración completa del framework AI Job Search desde Claude Code a Oh My Pi, con:
+- **Almacenamiento del perfil en inglés** (base universal)
+- **Detección automática del idioma del posting** (cualquier idioma)
+- **Traducción automática del CV** desde inglés al idioma del posting
+- **Interfaz configurable** en español o inglés
 
 ### Decisiones Clave
 
 | Área | Decisión |
 |------|----------|
-| Perfil base | Solo en español |
-| Idioma de comunicación | Español (todo el output, comandos, mensajes) |
-| Traducción de CV | Automática (es→en on-the-fly cuando el posting es en inglés) |
+| Perfil base | **Inglés** (almacenamiento universal) |
+| Idioma de comunicación | **Español o inglés** (seleccionable por usuario) |
+| Idioma de CV/carta | **Cualquier idioma** detectado en el posting (es, en, da, de, fr, pt, it, nl, etc.) |
+| Traducción | Automática: inglés → idioma target (on-the-fly) |
 | Enfoque de migración | Port nativo completo a Oh My Pi |
-| Plantillas | Dual-language (es + en) |
+| Plantillas | Multi-idioma (estructura base + headings localizados) |
 
 ---
 
@@ -236,31 +231,36 @@ Paso 4: Usuario selecciona postings para /aplicar o /rank
 
 ### 4.2 Skill: traductor
 
-**Propósito:** Traducir perfil de español a inglés bajo demanda.
+**Propósito:** Traducir perfil desde inglés a cualquier idioma target bajo demanda.
 
 **Input:**
-- `local://perfil.md`
-- Idioma target: `en`
+- `local://perfil.md` (en inglés)
+- Idioma target: cualquier idioma detectado (`es`, `en`, `da`, `de`, `fr`, `pt`, `it`, `nl`, `sv`, `no`, etc.)
 
 **Estrategia de traducción:**
 
-| Tipo | Estrategia | Ejemplo |
-|------|-----------|---------|
-| Títulos de sección | Traducción fija | "Experiencia" → "Professional Experience" |
-| Cargos estándar | Traducción común | "Desarrollador Senior" → "Senior Developer" |
-| Nombres propios | Sin traducir | "Universidad Complutense" → mismo |
-| Descripciones de rol | Traducción contextual preservando keywords | "Lideré equipo de 5" → "Led team of 5" |
-| Skills técnicas | Sin traducir | "Python, React, AWS" → mismo |
+| Tipo | Estrategia | Ejemplo (en→es) | Ejemplo (en→de) |
+|------|-----------|-----------------|-----------------|
+| Títulos de sección | Traducción fija | "Experience" → "Experiencia" | "Experience" → "Berufserfahrung" |
+| Cargos estándar | Traducción común | "Senior Developer" → "Desarrollador Senior" | "Senior Developer" → "Senior Entwickler" |
+| Nombres propios | Sin traducir | "MIT" → mismo | "MIT" → mismo |
+| Descripciones de rol | Traducción contextual preservando keywords | "Led team of 5" → "Lideré equipo de 5" | "Led team of 5" → "Habe ein 5-köpfiges Team geleitet" |
+| Skills técnicas | Sin traducir | "Python, React, AWS" → mismo | "Python, React, AWS" → mismo |
+| Fechas | Formato localizado | "July 8, 2026" → "8 de julio de 2026" | "July 8, 2026" → "8. Juli 2026" |
+
+**Motor de traducción:**
+- Usa `web_search` o API externa (DeepL, Google Translate) para traducciones on-the-fly
+- Para idiomas con muchos postings (es, de, fr), cachea traducciones frecuentes
+- Nombres de empresas/instituciones: investiga si tienen nombre oficial en el idioma target
 
 **Cache:**
-- `local://traducciones.json` almacena traducciones frecuentes
-- Key: término en español → Value: traducción en inglés
+- `local://translations-cache.json` almacena traducciones frecuentes
+- Key: `{ english_term: { es: "...", de: "...", fr: "..." } }`
 - Evita reprocesar mismos términos
 
 **Output:**
-- Perfil traducido en memoria (no se guarda archivo)
-- Se usa directamente para redacción de CV en inglés
-
+- Perfil traducido en memoria (no se guarda archivo permanente)
+- Se usa directamente para redacción de CV en idioma target
 ---
 
 ### 4.3 Skill: localizador
@@ -611,42 +611,313 @@ Cada aplicación generada debe pasar:
 
 ## 8. Migración desde Claude Code
 
-### 8.1 Qué se conserva
+### 8.1 Mapeo Componente por Componente
 
-| Componente | Estado |
-|------------|--------|
-| Plantillas LaTeX base | ✅ Reutilizar (traducir headings) |
-| Perfil del candidato | ✅ Migrar contenido a `local://perfil.md` |
-| Job portal CLIs | ✅ Mover de `.agents/skills/` a herramientas reusables |
-| Estructura documents/ | ✅ Mismo layout |
-| Flujo drafter-reviewer | ✅ Reimplementar con `task` batch |
+#### A. Comandos / Entrada de Usuario
 
-### 8.2 Qué se reescribe
+| Claude Code | Oh My Pi | Cambios requeridos |
+|-------------|----------|-------------------|
+| `/apply <URL>` | `python commands/aplicar.py <URL>` | Reescribir lógica en Python; mapear herramientas Claude (`fetch`, `write`) a Oh My Pi (`browser`, `write`, `agent`) |
+| `/setup` | `python commands/setup.py` | Reentarvar perfil interview; guardar en `local://perfil.md` (inglés) en vez de `.claude/skills/job-application-assistant/01-candidate-profile.md` |
+| `/scrape` | `python commands/scrape.py` | Portar CLI tools de Bun existentes; output en formato Oh My Pi |
+| `/rank` | `python commands/rank.py` | Reimplementar scoring con `task` batch parallel |
+| `/interview` | `python commands/interview.py` | Pendiente de implementación |
+| `/outcome` | `python commands/outcome.py` | Pendiente de implementación |
+| `/expand` | `python commands/expand.py` | Pendiente de implementación |
+| `/upskill` | `python commands/upskill.py` | Ya existe en `upskill/`; adaptar a Oh My Pi |
+| `/add-template` | `python commands/add_template.py` | Pendiente de implementación |
+| `/add-portal` | `python commands/add_portal.py` | Pendiente de implementación |
+| `/reset` | `python commands/reset.py` | Pendiente de implementación |
 
-| Componente | Estado |
-|------------|--------|
-| Comandos (`/apply`, `/setup`) | ❌ Reescribir en Python CLI |
-| Skills markdown (`.claude/skills/`) | ❌ Reescribir como Oh My Pi skills/agents |
-| Settings (`.claude/settings.json`) | ❌ Adaptar a config de Oh My Pi |
-| Orquestación de agentes | ❌ Reimplementar con `task` tool |
+#### B. Skills / Conocimiento
+
+| Claude Code (`.claude/skills/job-application-assistant/`) | Oh My Pi (`skills/` o `.omp/agents/`) | Cambios requeridos |
+|-------------|----------|-------------------|
+| `SKILL.md` | `skills/job-application/SKILL.md` | Traducir a formato Oh My Pi (frontmatter: `name`, `description`, `globs`) |
+| `01-candidate-profile.md` | `local://perfil.md` | **Importante:** Traducir contenido a **inglés** para almacenamiento universal |
+| `02-behavioral-profile.md` | `local://perfil.md` (sección behavioral) | Mismo formato; traducir a inglés |
+| `03-writing-style.md` | `skills/writing-style/SKILL.md` | Adaptar reglas de escritura; añadir soporte multi-idioma |
+| `04-job-evaluation.md` | `skills/job-evaluation/SKILL.md` | Reescribir scoring framework; mantener lógica |
+| `05-cv-templates.md` | `plantillas/cv/` + `skills/cv-templates/SKILL.md` | Separar plantillas (.tex) de instrucciones (.md) |
+| `06-cover-letter-templates.md` | `plantillas/cover/` + `skills/cover-templates/SKILL.md` | Igual que CV |
+| `07-interview-prep.md` | `skills/interview-prep/SKILL.md` | Traducir a inglés; mantener framework STAR |
+
+#### C. Agents / Subprocesos
+
+| Claude Code | Oh My Pi | Cambios requeridos |
+|-------------|----------|-------------------|
+| "Drafter agent" (spawn interno) | `task` con `agent: "redactor"` | Usar `task` tool con `tasks[]` batch; definir agente en `.omp/agents/redactor/AGENT.md` |
+| "Reviewer agent" (spawn interno) | `task` con `agent: "revisor"` | Igual; definir en `.omp/agents/revisor/AGENT.md` |
+| Agent orchestrator (skill logic) | `commands/aplicar.py` + `task` | Lógica en Python; orquestación con `task` tool |
+
+#### D. Configuración / Settings
+
+| Claude Code | Oh My Pi | Cambios requeridos |
+|-------------|----------|-------------------|
+| `.claude/settings.json` | `.omp/config.json` o `local://config.md` | Mapear permissions: `Bash(bun run:*)` → bash tool, etc. |
+| `.claude/commands/*.md` | `commands/*.py` | Reescribir comandos como scripts Python, no markdown |
+| `.claude/skills/` | `skills/` o `.omp/skills/` | Migrar skills a formato Oh My Pi con frontmatter |
+
+#### E. Job Portal Tools
+
+| Claude Code (`.agents/skills/`) | Oh My Pi | Cambios requeridos |
+|-------------|----------|-------------------|
+| `jobbank-search/cli/` | `tools/job-portal-cli/jobbank.ts` | Mover scripts; mantener lógica Bun |
+| `jobdanmark-search/cli/` | `tools/job-portal-cli/jobdanmark.ts` | Igual |
+| `jobindex-search/cli/` | `tools/job-portal-cli/jobindex.ts` | Igual |
+| `jobnet-search/cli/` | `tools/job-portal-cli/jobnet.ts` | Igual |
+| `linkedin-search/cli/` | `tools/job-portal-cli/linkedin.ts` | Igual |
+
+#### F. Output Artifacts
+
+| Claude Code | Oh My Pi | Cambios requeridos |
+|-------------|----------|-------------------|
+| `cv/main_<company>.tex` | `cv/main_<company>_<idioma>.tex` | Añadir sufijo de idioma; plantilla seleccionada dinámicamente |
+| `cover_letters/cover_<company>_<role>.tex` | `cover_letters/cover_<company>_<idioma>.tex` | Igual |
+| `documents/applications/<company>_<role>/` | `documents/applications/<company>_<role>/` | Mismo layout; añadir metadata de idioma |
+| `job_search_tracker.csv` | `local://tracker.csv` | Mismo formato; posiblemente mover a `local://` |
+
+---
+
+### 8.2 Flujo de Migración Paso a Paso
+
+#### Fase 1: Infraestructura Básica
+
+```bash
+# 1. Crear estructura de directorios Oh My Pi
+mkdir -p .omp/agents/{evaluador,redactor,revisor,scraper}
+mkdir -p .omp/skills/{idioma-detector,traductor,localizador}
+mkdir -p commands/
+mkdir -p plantillas/{cv,cover}
+mkdir -p tools/job-portal-cli/
+
+# 2. Mover job portal CLIs existentes
+mv .agents/skills/jobbank-search/cli/* tools/job-portal-cli/
+mv .agents/skills/jobdanmark-search/cli/* tools/job-portal-cli/
+mv .agents/skills/jobindex-search/cli/* tools/job-portal-cli/
+mv .agents/skills/jobnet-search/cli/* tools/job-portal-cli/
+mv .agents/skills/linkedin-search/cli/* tools/job-portal-cli/
+```
+
+#### Fase 2: Migración de Skills
+
+```bash
+# 3. Traducir perfil a inglés y guardar en local://
+# (esto se hace durante el /setup inicial, no manualmente)
+
+# 4. Crear skills Oh My Pi
+# Cada skill necesita:
+# - SKILL.md con frontmatter (name, description, globs)
+# - Archivos de conocimiento referenced via skill://...
+```
+
+**Ejemplo: `skills/idioma-detector/SKILL.md`**
+
+```markdown
+---
+name: idioma-detector
+description: Detecta idioma, región y formalidad de un job posting
+globs: []
+alwaysApply: false
+---
+
+# Skill: Detector de Idioma
+
+Analiza job postings y determina...
+```
+
+#### Fase 3: Crear Agentes
+
+**Ejemplo: `.omp/agents/evaluador/AGENT.md`**
+
+```markdown
+---
+name: evaluador
+description: Evalúa fit entre perfil y job posting
+spawns: false
+---
+
+# Agente: Evaluador de Fit
+
+## Rol
+Evaluar compatibilidad entre el perfil del candidato y un job posting.
+
+## Contexto
+- `local://perfil.md` (inglés)
+- Job posting completo
+- Idioma detectado
+
+## Tasks
+1. Comparar skills requeridas vs perfil
+...
+```
+
+#### Fase 4: Implementar Commands CLI
+
+**Ejemplo: `commands/aplicar.py`**
+
+```python
+#!/usr/bin/env python3
+"""
+/aplicar - Ejecuta flujo completo de aplicación
+Usage: python commands/aplicar.py <URL|texto>
+"""
+
+import sys
+from pathlib import Path
+
+def main():
+    if len(sys.argv) < 2:
+        print("Error: Proporcione URL o texto del job posting")
+        sys.exit(1)
+    
+    job_input = sys.argv[1]
+    
+    # Paso 1: Fetch del posting
+    posting_text = fetch_job(job_input)
+    
+    # Paso 2: Detectar idioma
+    idioma_info = detect_language(posting_text)
+    
+    # Paso 3: Evaluar fit (agente)
+    fit_result = evaluate_fit(posting_text)
+    
+    # ... continuar flujo
+```
+
+#### Fase 5: Plantillas Multi-idioma
+
+```bash
+# 5. Crear plantillas base (español + inglés como mínimos)
+# Luego añadir headers localizados para otros idiomas
+```
+
+**Estructura de plantilla:**
+
+```latex
+% plantillas/cv/moderncv-base.tex
+% Headers localizados se inyectan según idioma
+
+\section{SECTION_EXPERIENCE}  % Placeholder → "Experience" / "Experiencia" / "Berufserfahrung"
+```
+
+#### Fase 6: Testing
+
+```bash
+# 6. Testear con postings reales en múltiples idiomas
+python commands/aplicar.py https://jobindex.dk/job/...   # Danés/Inglés
+python commands/aplicar.py https://infojobs.net/...       # Español
+python commands/aplicar.py https://seek.com.au/...        # Inglés AU
+```
+
+---
+
+### 8.3 Qué se conserva
+
+| Componente | Estado | Notas |
+|------------|--------|-------|
+| Plantillas LaTeX base | ✅ Reutilizar | Traducir headings; añadir soporte multi-idioma |
+| Perfil del candidato | ✅ Migrar | **Traducir a inglés** para `local://perfil.md` |
+| Job portal CLIs | ✅ Mover | De `.agents/skills/` a `tools/job-portal-cli/`; mantener lógica Bun |
+| Estructura documents/ | ✅ Mismo layout | `documents/applications/`, `documents/cv/`, etc. |
+| Flujo drafter-reviewer | ✅ Reimplementar | Con `task` batch en Oh My Pi |
+| LaTeX compile flow | ✅ Mismo proceso | `lualatex` para CV, `xelatex` para carta |
+| ATS verification | ✅ Mantener | `pdftotext` + verificación de text layer |
+
+---
+
+### 8.4 Qué se reescribe
+
+| Componente | Estado | Razón |
+|------------|--------|-------|
+| Comandos (`/apply`, `/setup`) | ❌ Reescribir en Python CLI | Claude Code commands (.md) no compatibles con Oh My Pi |
+| Skills markdown (`.claude/skills/`) | ❌ Reescribir formato | Oh My Pi requiere frontmatter específico (`name`, `description`, `globs`) |
+| Settings (`.claude/settings.json`) | ❌ Adaptar | Oh My Pi usa otro sistema de config |
+| Orquestación de agentes | ❌ Reimplementar | Claude Code spawn interno → Oh My Pi `task` tool |
+| Perfil (almacenamiento) | ❌ Traducir a inglés | Requisito para multi-idioma output |
+| Interfaz de usuario | ❌ Adaptar | Claude Code terminal UI → Oh My Pi chat/conversación |
+
+---
+
+### 8.5 Breaking Changes
+
+| Cambio | Impacto | Mitigación |
+|--------|---------|------------|
+| Perfil en inglés (no español) | Usuario debe tener perfil traducido | `/setup` hace traducción inicial asistida |
+| Commands ahora son scripts Python | No más `/apply` en Claude Code | Documentar nuevos comandos; crear aliases |
+| Skills formato Oh My Pi | Skills existentes no loadean | Reescribir con frontmatter; mantener semántica |
+| Agentes vía `task` tool | Sintaxis de spawn diferente | Actualizar patrones de orquestación |
 
 ---
 
 ## 9. Próximos Pasos
 
-1. **Crear estructura de agentes** (`.omp/agents/`)
-2. **Escribir skills** (`.omp/skills/` o `skills/`)
-3. **Implementar CLI commands** (Python)
-4. **Traducir plantillas** (es + en)
-5. **Migrar perfil existente** → `local://perfil.md`
-6. **Testear flujo completo** con posting real
-7. **Documentar usage** en README (en español)
+### Fase 1: Infraestructura (Semana 1)
+
+- [ ] Crear estructura de directorios Oh My Pi (`.omp/`, `skills/`, `commands/`, `plantillas/`)
+- [ ] Mover job portal CLIs de `.agents/skills/` a `tools/job-portal-cli/`
+- [ ] Configurar `local://` root para perfil y contexto
+- [ ] Crear `commands/setup.py` (primer comando para poblar perfil)
+
+### Fase 2: Skills Core (Semana 2)
+
+- [ ] `skills/idioma-detector/SKILL.md` - detección multi-idioma
+- [ ] `skills/traductor/SKILL.md` - traducción inglés → cualquier idioma
+- [ ] `skills/localizador/SKILL.md` - reglas regionales
+- [ ] `skills/job-evaluation/SKILL.md` - scoring framework
+- [ ] Traducir perfil existente a inglés (durante `/setup`)
+
+### Fase 3: Agentes (Semana 2-3)
+
+- [ ] `.omp/agents/evaluador/AGENT.md`
+- [ ] `.omp/agents/redactor/AGENT.md`
+- [ ] `.omp/agents/revisor/AGENT.md`
+- [ ] `.omp/agents/scraper/AGENT.md`
+- [ ] Testear spawning con `task` tool
+
+### Fase 4: Commands CLI (Semana 3)
+
+- [ ] `commands/aplicar.py` - flujo completo
+- [ ] `commands/scrape.py` - integración portales
+- [ ] `commands/rank.py` - scoring batch
+- [ ] `commands/setup.py` - configuración inicial
+- [ ] Documentar uso (README en español)
+
+### Fase 5: Plantillas (Semana 4)
+
+- [ ] `plantillas/cv/moderncv-base.tex` - estructura común
+- [ ] `plantillas/cv/headers-es.tex` - español
+- [ ] `plantillas/cv/headers-en.tex` - inglés
+- [ ] `plantillas/cv/headers-de.tex` - alemán
+- [ ] `plantillas/cv/headers-fr.tex` - francés
+- [ ] `plantillas/cover/cover-base.cls`
+- [ ] `plantillas/cover/headers-*.tex` (mismo patrón)
+- [ ] Test compile para cada idioma
+
+### Fase 6: Testing & QA (Semana 4-5)
+
+- [ ] Test `/aplicar` con postings en:
+  - [ ] Español (InfoJobs, LinkedIn España)
+  - [ ] Inglés (LinkedIn UK/US, Indeed)
+  - [ ] Danés (Jobindex DK)
+  - [ ] Alemán (StepStone DE)
+- [ ] Verificar compilación PDF todos los idiomas
+- [ ] Verificar ATS check (si pdftotext disponible)
+- [ ] Test `/setup` flow completo
+
+### Fase 7: Documentación (Semana 5)
+
+- [ ] Actualizar README.md (en español)
+- [ ] Actualizar SETUP.md (en español)
+- [ ] Migrar documentación de skills
+- [ ] Ejemplos de uso
 
 ---
 
 ## 10. Appendix
 
 ### A. Glosario de Términos
+
 
 | Español | Inglés |
 |---------|--------|
