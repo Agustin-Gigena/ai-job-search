@@ -1,0 +1,68 @@
+// For format details, see https://aka.ms/devcontainer.json
+{
+  "name": "AI Job Search (n8n + API)",
+  "dockerComposeFile": ["../docker-compose.yml"],
+  "service": "devcontainer",
+  "workspaceFolder": "/workspace",
+  
+  // Features to add to the dev container
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  
+  // Configure tool-specific properties
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "ms-toolsai.jupyter",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.linting.enabled": true,
+        "python.formatting.provider": "black",
+        "editor.formatOnSave": true
+      }
+    }
+  },
+  
+  // Use 'forwardPorts' to make a list of ports inside the container available locally
+  "forwardPorts": [
+    8000,  // AI Job Search API
+    5678   // n8n
+  ],
+  
+  // Use 'postCreateCommand' to run commands after the container is created
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  
+  // Uncomment when running the devcontainer on a Docker Network other than the default bridge
+  // "runArgs": ["--network=my-network"],
+  
+  // Access the n8n and API services from the devcontainer
+  "portsAttributes": {
+    "8000": {
+      "label": "AI Job Search API",
+      "onAutoForward": "notify"
+    },
+    "5678": {
+      "label": "n8n Workflow Automation",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  
+  // Set to 'true' if you want to install the vscode-mcp-server extension
+  // "mcpServer": true,
+  
+  // Uncomment to connect as root
+  "remoteUser": "root"
+}

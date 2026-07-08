@@ -1,0 +1,72 @@
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Dev container
+.devcontainer
+
+# Documentation
+*.md
+!requirements.txt
+LICENSE
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.env
+.venv
+env/
+venv/
+ENV/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Output (will be generated at runtime)
+output/
+data/whatsapp-session/
+
+# Backups
+*.bak
+*.backup
+backups/
+
+# Test
+tests/
+.pytest_cache/
+coverage/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
