@@ -1,0 +1,21 @@
+{
+  "name": "AI Job Search Dev",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "features": {
+    "ghcr.io/iyaki/devcontainer-features/oh-my-pi:1": {}
+  },
+  "forwardPorts": [5678],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh"
+}

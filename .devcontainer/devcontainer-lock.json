@@ -1,0 +1,9 @@
+{
+  "features": {
+    "ghcr.io/iyaki/devcontainer-features/oh-my-pi:1": {
+      "version": "1.0.0",
+      "resolved": "ghcr.io/iyaki/devcontainer-features/oh-my-pi@sha256:8d6fbcf27a0e67ae24252200520f5ef3a8c4dd46a3442032ecee110af741b272",
+      "integrity": "sha256:8d6fbcf27a0e67ae24252200520f5ef3a8c4dd46a3442032ecee110af741b272"
+    }
+  }
+}
